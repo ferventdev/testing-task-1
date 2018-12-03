@@ -1,0 +1,49 @@
+plugins {
+    id 'java'
+}
+
+group 'some-group'
+version '1.0-SNAPSHOT'
+
+compileJava.options.encoding = 'UTF-8'
+sourceCompatibility = 1.8
+
+repositories {
+    mavenLocal()
+    mavenCentral()
+    jcenter()
+}
+
+dependencies {
+
+    // lombok
+    compileOnly "org.projectlombok:lombok:1.+"
+
+    // apache commons useful libs
+    compile "org.apache.commons:commons-lang3:3.+"
+    compile "commons-io:commons-io:2.+"
+
+    // testing
+    testRuntimeOnly "org.junit.jupiter:junit-jupiter-engine:5.+"
+    testImplementation "org.junit.jupiter:junit-jupiter-api:5.+"
+    testCompile "org.assertj:assertj-core:3.+"
+    testCompile "org.mockito:mockito-core:2.+"
+}
+
+jar {
+    manifest {
+        attributes "Main-Class": "base.App"
+    }
+
+    from {
+        configurations.compile.collect { it.isDirectory() ? it : zipTree(it) }
+    }
+}
+
+test {
+    useJUnitPlatform()
+}
+
+wrapper {
+    gradleVersion = '4.8'
+}
