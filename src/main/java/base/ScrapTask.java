@@ -22,6 +22,7 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class ScrapTask implements Callable<FileStats> {
 
+    // naive regexps
     private static final Pattern SENTENCE_DELIMITER = Pattern.compile("\\s*[.?!]+\\s+", Pattern.MULTILINE);
     private static final Pattern WORD_DELIMITER = Pattern.compile("\\s*[\\s,;:(){}<>'`\"]+\\s*", Pattern.MULTILINE);
 
@@ -39,9 +40,7 @@ public class ScrapTask implements Callable<FileStats> {
             // saving to string
             String text = IOUtils.toString(reader);
 
-            // processing
-            String[] sentences = SENTENCE_DELIMITER.split(text);
-
+            // processing..
             Map<String, Long> wordsCount = null;
             if (args.isWordsCounterEnabled()) {
                 wordsCount = words.stream()
@@ -54,9 +53,10 @@ public class ScrapTask implements Callable<FileStats> {
                         .collect(Collectors.toMap(Function.identity(), word -> new ArrayList<>()));
             }
 
-            // maybe can be rewritten with streams / forEach
             if (args.isWordsCounterEnabled() || args.isExtractionEnabled()) {
+                String[] sentences = SENTENCE_DELIMITER.split(text);
 
+                // maybe can be rewritten with streams / forEach
                 for (String sentence : sentences) {
                     String[] tokens = WORD_DELIMITER.split(sentence);
                     for (String word : words) {
