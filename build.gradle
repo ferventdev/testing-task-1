@@ -16,6 +16,12 @@ repositories {
 
 dependencies {
 
+    // jackson
+    compile "com.fasterxml.jackson.core:jackson-databind:2.+"
+
+    // cli
+    compile "info.picocli:picocli:3.+"
+
     // lombok
     compileOnly "org.projectlombok:lombok:1.+"
 

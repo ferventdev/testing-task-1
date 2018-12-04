@@ -1,8 +1,11 @@
 package base;
 
+import picocli.CommandLine;
+
 public class App {
 
     public static void main(String[] args) {
-        System.out.println("Hello world!");
+
+        CommandLine.run(new Args(), args);
     }
 }
