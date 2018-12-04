@@ -1,12 +1,16 @@
 package base;
 
 import lombok.Getter;
+import lombok.extern.log4j.Log4j2;
 import picocli.CommandLine.Option;
 import picocli.CommandLine.Parameters;
 
+import java.time.Duration;
+import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -14,6 +18,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+@Log4j2
 @Getter
 public class Args implements Runnable {
 
@@ -38,13 +43,6 @@ public class Args implements Runnable {
 
     @Override
     public void run() {
-//        try {
-//            System.out.println("For check, parsed CLI parameters:");
-//            String jsonString = new ObjectMapper().writerWithDefaultPrettyPrinter().writeValueAsString(this);
-//            System.out.println(jsonString + "\n\n");
-//        } catch (JsonProcessingException e) {
-//            System.out.println(e.getMessage());
-//        }
 
         int availableProcessors = Runtime.getRuntime().availableProcessors();
         ExecutorService pool = Executors.newFixedThreadPool(Math.min(filenames.size(), availableProcessors * 4));
@@ -53,44 +51,46 @@ public class Args implements Runnable {
                 .map(filename -> CompletableFuture
                         .supplyAsync(() -> new ScrapTask(this, filename, words).call())
                         .exceptionally(ex -> {
-                            // todo log smth
+                            log.error("An exception occurred during the ScrapTask for the file '{}': {}", filename, ex);
                             return null;
                         }))
                 .collect(Collectors.toList());
+
+        Instant startTime = Instant.now();
 
         List<FileStats> fileStatsList = futures.stream()
                 .map(CompletableFuture::join)
                 .filter(Objects::nonNull)
                 .collect(Collectors.toList());
 
-        fileStatsList.forEach(System.out::println);
+        fileStatsList.forEach(oneFileStats -> log.info("File '{}' scrap summary:\n{}", oneFileStats.getFilename(), oneFileStats));
 
-        FileStats allFilesStats = fileStatsList.stream().reduce((fs1, fs2) -> {
-            return FileStats.builder()
-                    .filename("all files")
-                    .charactersCount(fs1.getCharactersCount() + fs2.getCharactersCount())
-                    .wordsCount(!wordsCounterEnabled ? null :
-                            Stream.of(fs1.getWordsCount(), fs2.getWordsCount())
-                                    .flatMap(map -> map.entrySet().stream())
-                                    .collect(Collectors.toMap(
-                                            Map.Entry::getKey,
-                                            Map.Entry::getValue,
-                                            (v1, v2) -> v1 + v2))
-                    )
-                    .sentencesExtracted(!isExtractionEnabled() ? null :
-                            Stream.of(fs1.getSentencesExtracted(), fs2.getSentencesExtracted())
-                                    .flatMap(map -> map.entrySet().stream())
-                                    .collect(Collectors.toMap(
-                                            Map.Entry::getKey,
-                                            Map.Entry::getValue,
-                                            (l1, l2) -> Stream.concat(l1.stream(), l2.stream()).collect(Collectors.toList()))
-                                    )
-                    )
-                    .timeSpent(Math.max(fs1.getTimeSpent(), fs2.getTimeSpent()))
-                    .build();
-        }).get();
+        // looks cool, but doesn't perform very well
+        Optional<FileStats> allFilesStats = fileStatsList.stream().reduce((fs1, fs2) -> FileStats.builder()
+                .filename("all files")
+                .charactersCount(!charsCounterEnabled ? null : fs1.getCharactersCount() + fs2.getCharactersCount())
+                .wordsCount(!wordsCounterEnabled ? null :
+                        Stream.of(fs1.getWordsCount(), fs2.getWordsCount())
+                                .flatMap(map -> map.entrySet().stream())
+                                .collect(Collectors.toMap(
+                                        Map.Entry::getKey,
+                                        Map.Entry::getValue,
+                                        (v1, v2) -> v1 + v2))
+                )
+                .sentencesExtracted(!isExtractionEnabled() ? null :
+                        Stream.of(fs1.getSentencesExtracted(), fs2.getSentencesExtracted())
+                                .flatMap(map -> map.entrySet().stream())
+                                .collect(Collectors.toMap(
+                                        Map.Entry::getKey,
+                                        Map.Entry::getValue,
+                                        (l1, l2) -> Stream.concat(l1.stream(), l2.stream()).collect(Collectors.toList()))
+                                )
+                )
+                .timeSpent(!isVerbosityEnabled() ? null : Duration.between(startTime, Instant.now()).toMillis())
+                .build()
+        );
 
-        System.out.println(allFilesStats);
+        allFilesStats.ifPresent(sumStats -> log.info("All files scrap summary:\n{}", sumStats));
 
         closePool(pool);
     }
@@ -100,7 +100,7 @@ public class Args implements Runnable {
         try {
             if (!pool.awaitTermination(5, TimeUnit.SECONDS)) pool.shutdownNow();
         } catch (InterruptedException e) {
-            System.out.println(e.getMessage()); // todo: maybe handled better
+            log.error("Executor pool termination was interrupted", e);
             pool.shutdownNow();
         }
     }

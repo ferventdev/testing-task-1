@@ -7,10 +7,12 @@ import com.fasterxml.jackson.databind.ObjectWriter;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.log4j.Log4j2;
 
 import java.util.List;
 import java.util.Map;
 
+@Log4j2
 @Getter
 @RequiredArgsConstructor
 @Builder
@@ -25,12 +27,13 @@ public class FileStats {
     private final Map<String, List<String>> sentencesExtracted;
     private final Long timeSpent;
 
+
     @Override
     public String toString() {
         try {
             return PRETTY_PRINTER.writeValueAsString(this);
         } catch (JsonProcessingException e) {
-            // todo: possibly can be handled better
+            log.error("FileStats for the file '{}' can't be serialized into JSON. Reason: {}", filename, e);
             return "{ \"error\": \"" + e.getMessage() + "\" }";
         }
     }

@@ -1,6 +1,7 @@
 package base;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.log4j.Log4j2;
 import org.apache.commons.io.IOUtils;
 
 import java.io.IOException;
@@ -19,16 +20,18 @@ import java.util.function.Function;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
+@Log4j2
 @RequiredArgsConstructor
 public class ScrapTask implements Callable<FileStats> {
 
-    // naive regexps
+    // naive regexps used
     private static final Pattern SENTENCE_DELIMITER = Pattern.compile("\\s*[.?!]+\\s+", Pattern.MULTILINE);
     private static final Pattern WORD_DELIMITER = Pattern.compile("\\s*[\\s,;:(){}<>'`\"]+\\s*", Pattern.MULTILINE);
 
     private final Args args;
     private final String filename;
     private final List<String> words;
+
 
     @Override
     public FileStats call() {
@@ -56,7 +59,7 @@ public class ScrapTask implements Callable<FileStats> {
             if (args.isWordsCounterEnabled() || args.isExtractionEnabled()) {
                 String[] sentences = SENTENCE_DELIMITER.split(text);
 
-                // maybe can be rewritten with streams / forEach
+                // maybe can be rewritten with streams
                 for (String sentence : sentences) {
                     String[] tokens = WORD_DELIMITER.split(sentence);
                     for (String word : words) {
@@ -89,8 +92,7 @@ public class ScrapTask implements Callable<FileStats> {
                     .build();
 
         } catch (IOException e) {
-            // todo log
-            System.out.println(e.getMessage());
+            log.error("File '{}' can't be found or read. Reason: {}", filename, e);
             return null;
         }
     }
