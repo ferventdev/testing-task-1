@@ -21,4 +21,5 @@ Unit testing is not required.
 
 Command line parameters example for Java implementation:
 
-`java –jar scraper.jar sample.txt word1,word2 –v –w –c –e`
+`java –jar scraper.jar -wcve word1,word2 src/main/resources/file1.txt src/main/resources/file2.txt`
+
